@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,7 +24,7 @@ var cutoff = time.Now().Add(-time.Hour * 24 * 2)
 
 // Sync checks the releases of upstream repository (owner, repo)
 // with the given repo, and creates the missing latest tags from upstream.
-func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix string, dryrun bool) error {
+func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner, upstreamRepo, tagPrefix, tagSuffix string, dryrun bool) error {
 	logrus.Infof("Retrieving all upstream tags for '%s/%s'...", upstreamOwner, upstreamRepo)
 
 	// This slice will hold all tags gathered from all pages.
@@ -57,20 +58,22 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 		return fmt.Errorf("failed to retrieve '%s/%s' releases: %v", owner, repo, err)
 	}
 
+	buildSuffixRegex := regexp.MustCompile(`(-rke2r\d+)?(-build\d+|b\d+)$`)
+
 	tagsMap := make(map[string]struct{}, len(tags))
 	for _, tag := range tags {
-		// removes any suffixes (e.g. -buildYYYYMMDD) to build a map to check
+		// removes some suffixes (e.g. -buildYYYYMMDD and rke2rN) to build a map to check
 		// the existence of tags in image-build repo
-		tag, _, _ := strings.Cut(tag.GetName(), "-")
-		tagsMap[tag] = struct{}{}
+		cleanTagName := buildSuffixRegex.ReplaceAllString(tag.GetName(), "")
+		tagsMap[cleanTagName] = struct{}{}
 	}
 
 	for _, upstreamTag := range upstreamTags {
 		upstreamTagName := upstreamTag.GetName()
 
 		// skip if the current upstream tag name isn't valid.
-		if !validateTagFormat(upstreamTagName, tagPrefix) {
-			logrus.Infof("'%s/%s' tag '%s' is not in expected format, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+		if !validateTagFormat(upstreamTagName, tagPrefix, tagSuffix) {
+			logrus.Debugf("'%s/%s' tag '%s' is not in expected format, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
 			continue
 		}
 
@@ -80,32 +83,30 @@ func Sync(ctx context.Context, client *github.Client, owner, repo, upstreamOwner
 			continue
 		}
 
-		// if the tag is older than the defined cutoff time
+		// if the tag is older than the defined cutoff time it can be ignored
 		if isOlder {
-			logrus.Infof("'%s/%s' tag '%s' is older than 2 days, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
+			logrus.Debugf("'%s/%s' tag '%s' is older than 2 days, skipping release.", upstreamOwner, upstreamRepo, upstreamTagName)
 			continue
 		}
-		// if the release is older than a couple of day it can be ignored
+
+		processedTagName := upstreamTagName
 		if tagPrefix != "" {
-			if !strings.HasPrefix(upstreamTagName, tagPrefix) {
-				continue
-			}
-			upstreamTagName = strings.TrimPrefix(upstreamTagName, tagPrefix)
+			processedTagName = strings.TrimPrefix(upstreamTagName, tagPrefix)
 		}
 
 		// skip current upstream release if not GA
-		if strings.Contains(upstreamTagName, "rc") || strings.Contains(upstreamTagName, "alpha") || strings.Contains(upstreamTagName, "beta") || strings.Contains(upstreamTagName, "dev") {
+		if strings.Contains(processedTagName, "rc") || strings.Contains(processedTagName, "alpha") || strings.Contains(processedTagName, "beta") || strings.Contains(processedTagName, "dev") {
 			continue
 		}
 
-		if _, found := tagsMap[upstreamTagName]; found {
+		if _, found := tagsMap[processedTagName]; found {
 			logrus.Infof("'%s/%s' tag '%s' found in '%s/%s', skipping release.", upstreamOwner, upstreamRepo, upstreamTagName, owner, repo)
 			continue
 		}
 
 		logrus.Infof("'%s/%s' tag '%s' not found in 'rancher/%s'.", upstreamOwner, upstreamRepo, upstreamTagName, repo)
 
-		imageBuildTag := upstreamTagName
+		imageBuildTag := processedTagName
 
 		// for image-build-kubernetes repo, there's a -rker1 suffix for new k8s releases.
 		if repo == imageBuildK8s {
@@ -179,18 +180,29 @@ func isTagOlderThanCutoff(ctx context.Context, client *github.Client, owner, rep
 // If tagPrefix is provided, the tagName must start with it.
 // If tagPrefix is empty, the tagName must not have any other prefix (besides the optional 'v').
 // It returns a boolean indicating if the format is valid.
-func validateTagFormat(tagName, tagPrefix string) bool {
+func validateTagFormat(tagName, tagPrefix, tagSuffix string) bool {
 	var versionStr string
 
-	// Case 1: A specific prefix is required.
+	// Handle prefix
 	if tagPrefix != "" {
 		if !strings.HasPrefix(tagName, tagPrefix) {
 			return false
 		}
 		versionStr = strings.TrimPrefix(tagName, tagPrefix)
 	} else {
-		// Case 2: No prefix is allowed, the tag itself must be the version.
 		versionStr = tagName
+	}
+
+	// Handle suffix
+	if tagSuffix != "" {
+		matched, err := regexp.MatchString(tagSuffix, tagName)
+		if err != nil {
+			logrus.Error("An error occurred when compiling regex suffix: ", err.Error())
+		}
+
+		if !matched {
+			return false
+		}
 	}
 
 	// semver library to validate the version string, if it contains a prefix (besides 'v' it fails).
@@ -207,6 +219,10 @@ func validateTagFormat(tagName, tagPrefix string) bool {
 	// - v3.21.1-pod2daemon <- will be skipped
 	// - v3.24.2-0.dev <------ will be skipped
 	if v.Prerelease() != "" {
+		// If there's a tagSuffix, we allow the "prerelease" version
+		if tagSuffix != "" {
+			return true
+		}
 		return false
 	}
 

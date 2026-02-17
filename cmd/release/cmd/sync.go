@@ -16,6 +16,7 @@ var (
 	upstreamOwner     string
 	upstreamRepo      string
 	upstreamTagPrefix string
+	upstreamTagSuffix string
 	commitish         string
 )
 
@@ -36,7 +37,7 @@ var syncImageBuildCmd = &cobra.Command{
 		}
 		ghClient := repository.NewGithub(ctx, ghToken)
 
-		return imagebuild.Sync(ctx, ghClient, owner, *repo, upstreamOwner, upstreamRepo, upstreamTagPrefix, dryRun)
+		return imagebuild.Sync(ctx, ghClient, owner, *repo, upstreamOwner, upstreamRepo, upstreamTagPrefix, upstreamTagSuffix, dryRun)
 	},
 }
 
@@ -63,6 +64,7 @@ func init() {
 	syncCmd.AddCommand(syncRepublishLatestReleaseCmd)
 
 	syncImageBuildCmd.Flags().StringVar(&upstreamTagPrefix, "tag-prefix", "", "Upstream tag Prefix")
+	syncImageBuildCmd.Flags().StringVar(&upstreamTagSuffix, "tag-suffix", "", "Upstream tag Suffix")
 	syncImageBuildCmd.Flags().StringVar(&upstreamRepo, "upstream-repo", "", "Upstream repository name")
 	if err := syncImageBuildCmd.MarkFlagRequired("upstream-repo"); err != nil {
 		fmt.Println(err.Error())
