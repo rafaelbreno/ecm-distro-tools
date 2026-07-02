@@ -39,6 +39,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global user.name "rafaelbreno"
+          git config --global user.email "32229014+rafaelbreno@users.noreply.github.com"
 
       - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
         env:
