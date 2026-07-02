@@ -37,5 +37,6 @@ jobs:
       - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: release update rke2 references ${VERSION} --config-file=ecm-config.json
