@@ -34,9 +34,14 @@ jobs:
       - name: list directories
         run: find $GITHUB_WORKSPACE -type d -not -path "*/\.git/*"
 
+      - name: "Configure git to use HTTPS instead of SSH"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "git@github.com:"
+
       - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: release update rke2 references ${VERSION} --config-file=ecm-config.json
