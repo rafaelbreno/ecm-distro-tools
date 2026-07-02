@@ -18,6 +18,7 @@ jobs:
   update-references:
     name: "Update RKE2 References"
     permissions:
+      contents: write
       id-token: write
     runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
     steps:
@@ -27,25 +28,11 @@ jobs:
           sparse-checkout: |
             ecm-config.json
 
-      - name: "Read Secrets"
-        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/github/rancher-release-team-auto-tagger/app-credentials appId | APP_ID ;
-            secret/data/github/repo/${{ github.repository }}/github/rancher-release-team-auto-tagger/app-credentials privateKey | PRIVATE_KEY
-
-      - name: "Generate GitHub App token"
-        id: generate-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
-        with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.PRIVATE_KEY }}
-
       - name: "Setup `ecm-distro-tools` CLI"
         uses: rancher/ecm-distro-tools@016551c414f82e64af8c4c18315ea3093d10be7c # v0.74.3
 
       - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
         env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: release update rke2 references ${VERSION}
