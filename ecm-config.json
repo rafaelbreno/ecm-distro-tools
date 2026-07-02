@@ -1,7 +1,7 @@
 {
   "user": {
     "email": "your.name@suse.com",
-    "github_username": "your-github-username"
+    "github_username": "rafaelbreno"
   },
   "k3s": {
     "versions": {
