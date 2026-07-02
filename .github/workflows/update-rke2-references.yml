@@ -35,4 +35,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           VERSION: ${{ inputs.version }}
-        run: release update rke2 references ${VERSION}
+        run: release update rke2 references ${VERSION} --config-file=ecm-config.json

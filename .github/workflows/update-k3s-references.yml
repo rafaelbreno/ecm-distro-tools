@@ -46,16 +46,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ inputs.version }}
-        run: release generate k3s tags ${VERSION}
+        run: release generate k3s tags ${VERSION} --config-file=ecm-config.json
 
       - name: "Push `{{ inputs.version }}` Kubernetes Tags"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ inputs.version }}
-        run: release push k3s tags ${VERSION}
+        run: release push k3s tags ${VERSION} --config-file=ecm-config.json 
 
       - name: "Open `k3s-io/k3s` PR Updating `{{ inputs.version }}` References"
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           VERSION: ${{ inputs.version }}
-        run: release update k3s references ${VERSION}
+        run: release update k3s references ${VERSION} --config-file=ecm-config.json 
