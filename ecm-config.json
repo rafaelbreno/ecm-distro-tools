@@ -39,6 +39,7 @@
         "release_branch": "release-1.33",
         "rke2_repo_owner": "rafaelbreno",
         "rke2_repo_name": "rke2",
+        "workspace": "/home/runner/work/github.com/rancher",
         "dry_run": false
       }
     }
