@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    runs-on: runs-on,runner=8cpu-linux-x64,run-id=${{ github.run_id }},image=ubuntu24-full-x64,hdd=256
+    runs-on: ubuntu-latest
     steps:
       - name: "Checkout `ecm-config.json`"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -33,6 +33,6 @@ jobs:
 
       - name: "Open `rancher/rke2` PR Updating `{{ inputs.version }}` References"
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: release update rke2 references ${VERSION}
